@@ -6,25 +6,32 @@ interface CosmosItem {
 }
 
 class CosmosDBClient {
-  private client: CosmosClient;
+  private client: CosmosClient | null = null;
   private database: Database | null = null;
   private container: Container | null = null;
 
   constructor() {
-    const endpoint = process.env.COSMOS_DB_ENDPOINT;
-    const key = process.env.COSMOS_DB_KEY;
+    // Don't initialize the client in constructor - do it lazily
+  }
 
-    if (!endpoint || !key) {
-      throw new Error('Cosmos DB endpoint and key must be set in environment variables');
+  private initializeClient(): void {
+    if (!this.client) {
+      const endpoint = process.env.COSMOS_DB_ENDPOINT;
+      const key = process.env.COSMOS_DB_KEY;
+
+      if (!endpoint || !key) {
+        throw new Error('Cosmos DB endpoint and key must be set in environment variables');
+      }
+
+      this.client = new CosmosClient({ endpoint, key });
     }
-
-    this.client = new CosmosClient({ endpoint, key });
   }
 
   async getDatabase(): Promise<Database> {
+    this.initializeClient(); // Initialize client lazily
     if (!this.database) {
       const databaseName = process.env.COSMOS_DB_DATABASE_NAME || 'capgemini-hospitality';
-      const { database } = await this.client.databases.createIfNotExists({
+      const { database } = await this.client!.databases.createIfNotExists({
         id: databaseName
       });
       this.database = database;
